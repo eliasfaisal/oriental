@@ -80,7 +80,9 @@
 /* Gradient Borders for Active Nav */
 .nav-item.active {
     position: relative;
-    background: linear-gradient(135deg, var(--primary-50), var(--bg-secondary));
+    /* background: linear-gradient(135deg, var(--primary-50), var(--bg-secondary)); */
+    background: var(--primary-500);
+    color: var(--primary-50);
 }
 
 .nav-item.active::after {
