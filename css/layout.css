@@ -139,7 +139,7 @@
     align-items: center;
     gap: var(--space-md);
     padding: var(--space-lg);
-    background: linear-gradient(135deg, var(--primary-50), var(--bg-secondary));
+    /* background: linear-gradient(135deg, var(--primary-50), var(--bg-secondary)); */
     border-radius: var(--radius-lg);
     margin: var(--space-lg);
     border: 1px solid var(--primary-100);
