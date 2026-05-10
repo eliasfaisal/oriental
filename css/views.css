@@ -187,9 +187,11 @@
 
 .board-column {
     min-width: 320px;
-    background: var(--bg-tertiary);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xs);
     animation: scaleIn var(--animation-base) var(--transition-base);
     animation-fill-mode: both;
 }
@@ -204,7 +206,7 @@
     align-items: center;
     margin-bottom: var(--space-md);
     padding-bottom: var(--space-sm);
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-light);
 }
 
 .column-title {
@@ -214,7 +216,7 @@
 }
 
 .column-count {
-    background: var(--bg-card);
+    background: var(--bg-hover, #f5f5f4);
     color: var(--text-muted);
     padding: 2px 8px;
     border-radius: var(--radius-full);
@@ -237,11 +239,11 @@
 
 /* Task Card */
 .task-card {
-    background: var(--bg-card);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: var(--space-md);
     margin-bottom: var(--space-md);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-xs);
     cursor: pointer;
     border: 1px solid var(--border-color);
     user-select: none;
@@ -252,10 +254,26 @@
     position: relative;
 }
 
+.task-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: transparent;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transition: background var(--transition-fast);
+}
+
 .task-card:hover {
     box-shadow: var(--shadow-md);
     border-color: var(--primary-200);
     transform: translateY(-2px);
+}
+
+.task-card:hover::before {
+    background: var(--gradient-primary);
 }
 
 .task-card:active {
@@ -384,11 +402,11 @@
 }
 
 .sprint-header {
-    background: var(--bg-card);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
     margin-bottom: var(--space-xl);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-xs);
     border: 1px solid var(--border-color);
     animation: fadeInDown var(--animation-base) var(--transition-base);
 }
@@ -518,9 +536,11 @@
 .sprint-column {
     flex: 1;
     min-width: 280px;
-    background: var(--bg-tertiary);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xs);
     animation: scaleIn var(--animation-base) var(--transition-base);
     animation-fill-mode: both;
 }
@@ -977,13 +997,14 @@
 }
 
 .stat-card {
-    background: var(--bg-card);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: var(--space-lg);
     display: flex;
     align-items: center;
     gap: var(--space-md);
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xs);
     transition: all var(--transition-fast);
     animation: fadeInUp var(--animation-base) var(--transition-base);
     animation-fill-mode: both;
@@ -999,6 +1020,7 @@
 .stat-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);
+    border-color: var(--primary-200);
 }
 
 .stat-icon {
@@ -1012,7 +1034,15 @@
     color: var(--primary-600);
     font-size: 24px;
     transition: all var(--transition-fast);
+    flex-shrink: 0;
 }
+
+.stat-card:nth-child(1) .stat-icon { box-shadow: 0 0 20px rgba(22, 163, 74, 0.12); }
+.stat-card:nth-child(2) .stat-icon { box-shadow: 0 0 20px rgba(16, 185, 129, 0.12); }
+.stat-card:nth-child(3) .stat-icon { box-shadow: 0 0 20px rgba(245, 158, 11, 0.12); }
+.stat-card:nth-child(4) .stat-icon { box-shadow: 0 0 20px rgba(59, 130, 246, 0.12); }
+.stat-card:nth-child(5) .stat-icon { box-shadow: 0 0 20px rgba(139, 92, 246, 0.12); }
+.stat-card:nth-child(6) .stat-icon { box-shadow: 0 0 20px rgba(239, 68, 68, 0.12); }
 
 .stat-card:hover .stat-icon {
     transform: scale(1.1);
@@ -1028,11 +1058,12 @@
     font-weight: 700;
     display: block;
     line-height: 1.2;
+    color: var(--text-primary) !important;
     transition: all var(--transition-fast);
 }
 
 .stat-card:hover .stat-value {
-    color: var(--primary-600);
+    color: var(--primary-600) !important;
 }
 
 .stat-label {
@@ -1049,9 +1080,10 @@
 }
 
 .chart-card {
-    background: var(--bg-card);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xs);
     overflow: hidden;
     animation: scaleIn var(--animation-base) var(--transition-base);
     animation-fill-mode: both;
@@ -1075,18 +1107,23 @@
 }
 
 .chart-action {
-    background: none;
-    border: none;
+    background: var(--bg-hover, #f5f5f4);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--text-muted);
     cursor: pointer;
-    padding: var(--space-xs);
-    border-radius: var(--radius-sm);
     transition: all var(--transition-fast);
 }
 
 .chart-action:hover {
     color: var(--primary-600);
-    background: var(--bg-tertiary);
+    background: var(--primary-50);
+    border-color: var(--primary-200);
     transform: scale(1.1);
 }
 
@@ -1098,9 +1135,10 @@
 
 /* Health Section */
 .health-section {
-    background: var(--bg-card);
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xs);
     overflow: hidden;
     animation: fadeInUp var(--animation-base) var(--transition-base) 300ms both;
 }
