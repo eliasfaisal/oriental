@@ -173,8 +173,14 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="dashboard-header">
-                <h1 id="current-view">Board</h1>
-                <div class="header-actions">
+    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <h1 id="current-view">Board</h1>
+        <button id="all-projects-toggle" class="btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 500; transition: all 0.3s ease; cursor: pointer;">
+            <i class="fas fa-layer-group"></i>
+            <span>All Projects</span>
+        </button>
+    </div>
+    <div class="header-actions">
                     <!-- Search Bar -->
                     <div class="search-container">
                         <i class="fas fa-search search-icon"></i>
@@ -265,6 +271,9 @@
             <!-- Active Filters Badge Container -->
             <div class="active-filters" id="active-filters" style="display: none;"></div>
             
+<!-- Project Performance Charts (visible in All Projects mode) -->
+<div id="project-performance-charts" class="project-performance-grid" style="display: none;"></div>
+
             <!-- ============================================ -->
             <!-- BOARD VIEW -->
             <!-- ============================================ -->
@@ -381,10 +390,110 @@
                 </div>
 
                 <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><h3><i class="fas fa-chart-line"></i> Task Completion Trend</h3><button class="chart-action" onclick="exportChart('completion-trend')"><i class="fas fa-download"></i></button></div><div class="chart-container"><canvas id="completion-trend-chart" width="400" height="200"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><h3><i class="fas fa-chart-pie"></i> Priority Distribution</h3><button class="chart-action" onclick="exportChart('priority-distribution')"><i class="fas fa-download"></i></button></div><div class="chart-container"><canvas id="priority-chart" width="400" height="200"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><h3><i class="fas fa-trophy"></i> Team Performance</h3><button class="chart-action" onclick="exportChart('team-performance')"><i class="fas fa-download"></i></button></div><div class="chart-container"><canvas id="team-chart" width="400" height="200"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><h3><i class="fas fa-burn"></i> Sprint Burndown</h3><button class="chart-action" onclick="exportChart('sprint-burndown')"><i class="fas fa-download"></i></button></div><div class="chart-container"><canvas id="burndown-chart" width="400" height="200"></canvas></div></div>
+    <!-- Task Completion Trend -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-chart-line"></i> Task Completion Trend</h3>
+            <button class="chart-action" onclick="exportChart('completion-trend')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="completion-trend-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Priority Distribution -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-chart-pie"></i> Priority Distribution</h3>
+            <button class="chart-action" onclick="exportChart('priority-distribution')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="priority-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Team Performance -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-trophy"></i> Team Performance</h3>
+            <button class="chart-action" onclick="exportChart('team-performance')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="team-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Sprint Burndown -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-burn"></i> Sprint Burndown</h3>
+            <button class="chart-action" onclick="exportChart('sprint-burndown')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="burndown-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Cumulative Flow -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-tachometer-alt"></i> Cumulative Flow</h3>
+            <button class="chart-action" onclick="exportChart('cumulative-flow')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="cumulative-flow-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Task Aging -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-hourglass-half"></i> Task Aging</h3>
+            <button class="chart-action" onclick="exportChart('task-aging')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="task-aging-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Workload Distribution -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-tags"></i> Workload Distribution</h3>
+            <button class="chart-action" onclick="exportChart('workload-distribution')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="workload-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Weekly Velocity -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3><i class="fas fa-calendar-check"></i> Weekly Velocity</h3>
+            <button class="chart-action" onclick="exportChart('weekly-velocity')">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="velocity-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+</div>
                 </div>
 
                 <div class="health-section">

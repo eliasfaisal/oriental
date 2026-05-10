@@ -440,9 +440,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSorting();
     setupPullToRefresh();
     setupThemeToggle();
+    setupAllProjectsToggle();
+    setupOfflineSupport()
     
     initializePhase1Features();
-    
+    showAllProjects = true;
+
     window.addEventListener('beforeunload', cleanup);
     
     trackAnalytics('dashboard_loaded', { 
@@ -1519,7 +1522,16 @@ async function loadProjectsOptimized() {
             loadTaskCount(project.id, projectElement);
         });
         
-        if (!currentProject) selectProject(projects[0]);
+       if (!currentProject) {
+            // Default to All Projects view
+    showAllProjects = true;
+    const toggleBtn = document.getElementById('all-projects-toggle');
+    if (toggleBtn) {
+        toggleBtn.classList.add('active');
+        toggleBtn.querySelector('span').textContent = 'Single Project';
+        toggleBtn.querySelector('i').className = 'fas fa-folder';
+    }
+    loadAllProjectsTasks(true);}
     } catch (error) {
         console.error('Error loading projects:', error);
         showToast('Error loading projects', 'error');
@@ -1568,6 +1580,8 @@ async function selectProject(project) {
     
     document.querySelector('.dashboard-header h1').textContent = project.name;
     await loadTasks(true);
+        const chartContainer = document.getElementById('project-performance-charts');
+    if (chartContainer) chartContainer.style.display = 'none'
 }
 
 async function createProject(projectData) {
@@ -1604,6 +1618,148 @@ async function createProject(projectData) {
         return false;
     }
 }
+
+// ============================================
+// ALL PROJECTS TOGGLE
+// ============================================
+
+let showAllProjects = false;
+
+function setupAllProjectsToggle() {
+    const toggleBtn = document.getElementById('all-projects-toggle');
+    if (!toggleBtn) return;
+    
+    toggleBtn.addEventListener('click', () => {
+        showAllProjects = !showAllProjects;
+        
+        if (showAllProjects) {
+            toggleBtn.classList.add('active');
+            toggleBtn.querySelector('span').textContent = 'Single Project';
+            toggleBtn.querySelector('i').className = 'fas fa-folder';
+            loadAllProjectsTasks(true);
+        } else {
+            toggleBtn.classList.remove('active');
+            toggleBtn.querySelector('span').textContent = 'All Projects';
+            toggleBtn.querySelector('i').className = 'fas fa-layer-group';
+            loadTasks(true);
+        }
+    });
+}
+
+/**
+ * Load tasks from all projects in the organization
+ */
+async function loadAllProjectsTasks(showSkeleton = true) {
+    if (!currentOrganization) return;
+    
+    if (unsubscribeTasks) unsubscribeTasks();
+    if (showSkeleton) showBoardSkeleton();
+    
+    try {
+        // Get all non-archived projects
+        const projectsSnapshot = await db.collection('projects')
+            .where('organizationId', '==', currentOrganization)
+            .where('isArchived', '==', false)
+            .get();
+        
+        const projects = [];
+        projectsSnapshot.forEach(doc => {
+            projects.push({ id: doc.id, name: doc.data().name, color: doc.data().color });
+        });
+        
+        if (projects.length === 0) {
+            allTasks = [];
+            renderBoard([]);
+            return;
+        }
+        
+        // Get tasks from every project
+        allTasks = [];
+        for (const project of projects) {
+            const tasksSnapshot = await db.collection('tasks')
+                .where('projectId', '==', project.id)
+                .get();
+            
+            tasksSnapshot.forEach(doc => {
+                allTasks.push({
+                    id: doc.id,
+                    ...doc.data(),
+                    projectName: project.name,
+                    projectColor: project.color || '#16a34a',
+                    projectId: project.id
+                });
+            });
+        }
+        
+        console.log(`📋 Loaded ${allTasks.length} tasks from ${projects.length} projects`);
+        
+        // Update the board header
+        document.querySelector('.dashboard-header h1').textContent = 
+            `📋 All Projects (${projects.length})`;
+        
+        // Highlight current project in sidebar
+        document.querySelectorAll('.project-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        loadAssigneeFilters();
+        applySearchAndFilter();
+        setupSearchAndFilter();
+        console.log(`📋 Loaded ${allTasks.length} tasks from ${projects.length} projects`);
+await renderProjectPerformanceCharts();
+    } catch (error) {
+        console.error('Error loading all tasks:', error);
+        showToast('Error loading tasks', 'error');
+    }
+}
+
+/**
+ * Updated task card to show project info
+ */
+function createTaskCard(task) {
+    const priorityClass = task.priority === 'high' ? 'priority-high' : 
+                         (task.priority === 'medium' ? 'priority-medium' : 'priority-low');
+    const priorityIcon = task.priority === 'high' ? 'fa-arrow-up' : 
+                        (task.priority === 'medium' ? 'fa-minus' : 'fa-arrow-down');
+    const safeTaskId = task.id.replace(/'/g, "\\'");
+    const dueDateInfo = getDueDateDisplay(task.dueDate);
+    const dueDateClass = task.dueDate ? getDueDateStatus(task.dueDate) : '';
+    
+    let highlightedTitle = escapeHtml(task.title);
+    if (searchTerm) {
+        const regex = new RegExp(`(${searchTerm})`, 'gi');
+        highlightedTitle = highlightedTitle.replace(regex, '<mark class="search-highlight">$1</mark>');
+    }
+    
+    const recurringBadge = task.recurringTemplateId ? 
+        '<span class="recurrence-badge" title="Recurring Task"><i class="fas fa-redo-alt"></i></span>' : '';
+    
+    // Show project badge when viewing all projects
+    const projectBadge = showAllProjects ? `
+        <span style="display: inline-flex; align-items: center; gap: 4px; background: var(--primary-50); color: var(--primary-700); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; margin-left: 4px;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: ${task.projectColor || '#16a34a'}; display: inline-block;"></span>
+            ${escapeHtml(task.projectName || 'Unknown')}
+        </span>` : '';
+    
+    return `
+        <div class="task-card" draggable="true" data-task-id="${task.id}" data-status="${task.status || 'todo'}" data-project-id="${task.projectId}" onclick="openTaskDetail('${safeTaskId}')">
+            <div class="task-title">
+                ${highlightedTitle} ${recurringBadge}
+                ${projectBadge}
+            </div>
+            ${task.description ? `<div class="task-description">${escapeHtml(task.description.substring(0, 100))}</div>` : ''}
+            <div class="task-meta">
+                <span class="priority ${priorityClass}"><i class="fas ${priorityIcon}"></i> ${task.priority || 'medium'}</span>
+                ${dueDateInfo ? `<span class="task-due-date due-${dueDateClass}"><i class="fas fa-calendar-alt"></i> ${escapeHtml(dueDateInfo)}</span>` : ''}
+                <span class="assignee"><i class="fas fa-user"></i> ${task.assignedTo ? escapeHtml(task.assignedTo.substring(0, 8)) : 'Unassigned'}</span>
+                <button class="comment-btn" onclick="event.stopPropagation(); openTaskDetail('${safeTaskId}')"><i class="fas fa-comment"></i></button>
+            </div>
+        </div>
+    `;
+    
+}
+
+
 
 // ============================================
 // TASKS
@@ -2110,6 +2266,190 @@ function createTaskCard(task) {
         </div>
     `;
 }
+// ============================================
+// PROJECT PERFORMANCE MINI CHARTS (Above Board)
+// ============================================
+
+async function renderProjectPerformanceCharts() {
+    const container = document.getElementById('project-performance-charts');
+    if (!container) return;
+    
+    if (!showAllProjects || !currentOrganization) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'grid';
+    container.innerHTML = '<div class="loading-pulse" style="grid-column: 1/-1; text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Loading project insights...</div>';
+    
+    try {
+        // Get all projects
+        const projectsSnapshot = await db.collection('projects')
+            .where('organizationId', '==', currentOrganization)
+            .where('isArchived', '==', false)
+            .get();
+        
+        const projects = [];
+        projectsSnapshot.forEach(doc => {
+            projects.push({ id: doc.id, name: doc.data().name, color: doc.data().color || '#16a34a' });
+        });
+        
+        if (projects.length === 0) {
+            container.innerHTML = '<div class="empty-state-small" style="grid-column:1/-1;">No projects to analyze</div>';
+            return;
+        }
+        
+        // Get tasks for each project
+        const projectData = [];
+        
+        for (const project of projects) {
+            const tasksSnapshot = await db.collection('tasks')
+                .where('projectId', '==', project.id)
+                .get();
+            
+            const tasks = [];
+            tasksSnapshot.forEach(doc => tasks.push({ id: doc.id, ...doc.data() }));
+            
+            const total = tasks.length;
+            const completed = tasks.filter(t => t.status === 'done').length;
+            const inProgress = tasks.filter(t => t.status === 'in-progress').length;
+            const todo = tasks.filter(t => t.status === 'todo' || !t.status).length;
+            const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            // Priority breakdown
+            const highPriority = tasks.filter(t => t.priority === 'high').length;
+            const mediumPriority = tasks.filter(t => t.priority === 'medium').length;
+            const lowPriority = tasks.filter(t => t.priority === 'low').length;
+            
+            // Overdue tasks
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const overdue = tasks.filter(t => {
+                if (!t.dueDate || t.status === 'done') return false;
+                const due = new Date(t.dueDate);
+                due.setHours(0, 0, 0, 0);
+                return due < today;
+            }).length;
+            
+            projectData.push({
+                ...project,
+                total,
+                completed,
+                inProgress,
+                todo,
+                completionRate,
+                highPriority,
+                mediumPriority,
+                lowPriority,
+                overdue
+            });
+        }
+        
+        // Sort by total tasks descending
+        projectData.sort((a, b) => b.total - a.total);
+        
+        // Build mini chart cards
+        container.innerHTML = projectData.map(project => {
+            const healthColor = project.completionRate >= 70 ? '#10b981' : 
+                               (project.completionRate >= 40 ? '#f59e0b' : '#ef4444');
+            const healthLabel = project.completionRate >= 70 ? 'Healthy' : 
+                               (project.completionRate >= 40 ? 'At Risk' : 'Critical');
+            
+            return `
+                <div class="project-performance-card" onclick="switchToProject('${project.id}')" style="
+                    background: var(--bg-card);
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    padding: 16px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    position: relative;
+                    overflow: hidden;
+                ">
+                    <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: ${project.color};"></div>
+                    
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 10px; height: 10px; border-radius: 50%; background: ${project.color};"></span>
+                            <strong style="font-size: 14px; color: var(--text-primary);">${escapeHtml(project.name)}</strong>
+                        </div>
+                        <span style="
+                            font-size: 11px;
+                            padding: 3px 8px;
+                            border-radius: 12px;
+                            background: ${healthColor}20;
+                            color: ${healthColor};
+                            font-weight: 600;
+                        ">${healthLabel}</span>
+                    </div>
+                    
+                    <!-- Stats Row -->
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary);">
+                        <span title="Total Tasks"><i class="fas fa-tasks"></i> ${project.total}</span>
+                        <span title="Completed" style="color: #10b981;"><i class="fas fa-check-circle"></i> ${project.completed}</span>
+                        <span title="In Progress" style="color: #3b82f6;"><i class="fas fa-spinner"></i> ${project.inProgress}</span>
+                        ${project.overdue > 0 ? `<span title="Overdue" style="color: #ef4444;"><i class="fas fa-exclamation-circle"></i> ${project.overdue}</span>` : ''}
+                    </div>
+                    
+                    <!-- Mini Progress Bar -->
+                    <div style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <span style="color: var(--text-muted);">Progress</span>
+                            <span style="font-weight: 600; color: ${healthColor};">${project.completionRate}%</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 10px; overflow: hidden;">
+                            <div style="width: ${project.completionRate}%; height: 100%; background: ${healthColor}; border-radius: 10px; transition: width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Mini Status Breakdown Bar -->
+                    <div style="display: flex; height: 6px; border-radius: 10px; overflow: hidden; margin-bottom: 8px;">
+                        ${project.todo > 0 ? `<div style="width: ${(project.todo/project.total*100)}%; background: #9ca3af;" title="To Do: ${project.todo}"></div>` : ''}
+                        ${project.inProgress > 0 ? `<div style="width: ${(project.inProgress/project.total*100)}%; background: #3b82f6;" title="In Progress: ${project.inProgress}"></div>` : ''}
+                        ${project.completed > 0 ? `<div style="width: ${(project.completed/project.total*100)}%; background: #10b981;" title="Completed: ${project.completed}"></div>` : ''}
+                    </div>
+                    
+                    <!-- Priority Dots -->
+                    <div style="display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-muted);">
+                        <span style="display: flex; align-items: center; gap: 3px;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span> ${project.highPriority}
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 3px;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span> ${project.mediumPriority}
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 3px;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> ${project.lowPriority}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error rendering project performance charts:', error);
+        container.innerHTML = '<div class="empty-state-small" style="grid-column:1/-1;">Error loading charts</div>';
+    }
+}
+
+/**
+ * Switch to a specific project from the performance card
+ */
+window.switchToProject = function(projectId) {
+    showAllProjects = false;
+    const toggleBtn = document.getElementById('all-projects-toggle');
+    if (toggleBtn) {
+        toggleBtn.classList.remove('active');
+        toggleBtn.querySelector('span').textContent = 'All Projects';
+        toggleBtn.querySelector('i').className = 'fas fa-layer-group';
+    }
+    
+    // Find and select the project
+    const projectEl = document.querySelector(`.project-item[data-project-id="${projectId}"]`);
+    if (projectEl) {
+        projectEl.click();
+    }
+};
 
 // ============================================
 // DRAG AND DROP
@@ -3285,6 +3625,10 @@ async function loadReportsData() {
         renderPriorityDistributionChart(filteredTasks);
         renderTeamPerformanceChart(filteredTasks);
         renderBurndownChart(filteredTasks);
+            renderCumulativeFlowChart(filteredTasks, dateFilter);
+    renderTaskAgingChart(filteredTasks);
+    renderWorkloadChart(filteredTasks);
+    renderVelocityChart(filteredTasks, dateFilter);
         await populateHealthTable(filteredTasks);
         
         trackAnalytics('reports_loaded', { taskCount: filteredTasks.length });
@@ -3498,6 +3842,347 @@ function renderBurndownChart(tasks) {
             maintainAspectRatio: false,
             plugins: { legend: { position: 'bottom' } },
             scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// ============================================
+// NEW REPORTS CHARTS
+// ============================================
+
+/**
+ * Cumulative Flow Diagram - Shows work in progress over time
+ * Tracks how tasks move through statuses
+ */
+function renderCumulativeFlowChart(tasks, dateFilter) {
+    const canvas = document.getElementById('cumulative-flow-chart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (reportsCharts.cumulativeFlow) {
+        reportsCharts.cumulativeFlow.destroy();
+    }
+    
+    const days = Math.ceil((dateFilter.end - dateFilter.start) / (1000 * 60 * 60 * 24));
+    const step = Math.max(1, Math.floor(days / 10));
+    const labels = [];
+    const todoData = [];
+    const inProgressData = [];
+    const doneData = [];
+    
+    for (let i = days; i >= 0; i -= step) {
+        const d = new Date(dateFilter.end);
+        d.setDate(d.getDate() - i);
+        d.setHours(23, 59, 59, 999);
+        labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        
+        let todo = 0, inProgress = 0, done = 0;
+        tasks.forEach(t => {
+            const created = t.createdAt?.toDate() || new Date(0);
+            const updated = t.updatedAt?.toDate() || created;
+            
+            if (created <= d) {
+                if (t.status === 'done' && updated <= d) done++;
+                else if (t.status === 'in-progress' && updated <= d) inProgress++;
+                else todo++;
+            }
+        });
+        
+        todoData.push(todo);
+        inProgressData.push(inProgress);
+        doneData.push(done);
+    }
+    
+    reportsCharts.cumulativeFlow = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Done',
+                    data: doneData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    borderColor: '#10b981',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'In Progress',
+                    data: inProgressData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    borderColor: '#3b82f6',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'To Do',
+                    data: todoData,
+                    backgroundColor: 'rgba(156, 163, 175, 0.2)',
+                    borderColor: '#9ca3af',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: false },
+                y: { stacked: true, beginAtZero: true }
+            },
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: { mode: 'index' }
+            }
+        }
+    });
+}
+
+/**
+ * Task Aging Chart - How long tasks have been in their current status
+ */
+function renderTaskAgingChart(tasks) {
+    const canvas = document.getElementById('task-aging-chart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (reportsCharts.taskAging) {
+        reportsCharts.taskAging.destroy();
+    }
+    
+    const now = new Date();
+    const agingBuckets = {
+        'Today': 0,
+        '2-3 days': 0,
+        '4-7 days': 0,
+        '1-2 weeks': 0,
+        '2-4 weeks': 0,
+        '> 1 month': 0
+    };
+    
+    tasks.filter(t => t.status !== 'done').forEach(t => {
+        const created = t.createdAt?.toDate() || now;
+        const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays <= 1) agingBuckets['Today']++;
+        else if (diffDays <= 3) agingBuckets['2-3 days']++;
+        else if (diffDays <= 7) agingBuckets['4-7 days']++;
+        else if (diffDays <= 14) agingBuckets['1-2 weeks']++;
+        else if (diffDays <= 28) agingBuckets['2-4 weeks']++;
+        else agingBuckets['> 1 month']++;
+    });
+    
+    const labels = Object.keys(agingBuckets);
+    const data = Object.values(agingBuckets);
+    
+    // Color gradient from green to red
+    const colors = [
+        '#10b981',  // Today - green
+        '#34d399',  // 2-3 days
+        '#fbbf24',  // 4-7 days
+        '#f59e0b',  // 1-2 weeks
+        '#ef4444',  // 2-4 weeks
+        '#dc2626'   // > 1 month
+    ];
+    
+    reportsCharts.taskAging = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Open Tasks',
+                data: data,
+                backgroundColor: colors,
+                borderRadius: 6,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.raw} task(s) aging ${ctx.label}`
+                    }
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Workload Distribution - Tasks per assignee with status breakdown
+ */
+function renderWorkloadChart(tasks) {
+    const canvas = document.getElementById('workload-chart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (reportsCharts.workload) {
+        reportsCharts.workload.destroy();
+    }
+    
+    const stats = {};
+    tasks.forEach(t => {
+        const assignee = t.assignedTo || 'Unassigned';
+        if (!stats[assignee]) {
+            stats[assignee] = { todo: 0, inProgress: 0, done: 0 };
+        }
+        if (t.status === 'done') stats[assignee].done++;
+        else if (t.status === 'in-progress') stats[assignee].inProgress++;
+        else stats[assignee].todo++;
+    });
+    
+    // Sort by total workload (non-done tasks)
+    const sorted = Object.entries(stats)
+        .map(([name, s]) => ({ name, ...s, active: s.todo + s.inProgress }))
+        .sort((a, b) => b.active - a.active)
+        .slice(0, 8);
+    
+    const labels = sorted.map(s => s.name.length > 12 ? s.name.substring(0, 10) + '...' : s.name);
+    
+    reportsCharts.workload = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'To Do',
+                    data: sorted.map(s => s.todo),
+                    backgroundColor: '#9ca3af',
+                    borderRadius: 0
+                },
+                {
+                    label: 'In Progress',
+                    data: sorted.map(s => s.inProgress),
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 0
+                },
+                {
+                    label: 'Completed',
+                    data: sorted.map(s => s.done),
+                    backgroundColor: '#10b981',
+                    borderRadius: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            scales: {
+                x: { 
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                },
+                y: { stacked: true }
+            }
+        }
+    });
+}
+
+/**
+ * Weekly Velocity Chart - Tasks completed per week
+ */
+function renderVelocityChart(tasks, dateFilter) {
+    const canvas = document.getElementById('velocity-chart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (reportsCharts.velocity) {
+        reportsCharts.velocity.destroy();
+    }
+    
+    // Group tasks by week
+    const weeklyData = {};
+    const weeks = [];
+    const current = new Date(dateFilter.start);
+    
+    while (current <= dateFilter.end) {
+        const weekEnd = new Date(current);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const weekKey = current.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        weeklyData[weekKey] = { completed: 0, created: 0, weekStart: new Date(current), weekEnd: new Date(Math.min(weekEnd, dateFilter.end)) };
+        weeks.push(weekKey);
+        current.setDate(current.getDate() + 7);
+    }
+    
+    tasks.forEach(t => {
+        if (t.createdAt) {
+            const created = t.createdAt.toDate();
+            for (const [key, data] of Object.entries(weeklyData)) {
+                if (created >= data.weekStart && created <= data.weekEnd) {
+                    data.created++;
+                    break;
+                }
+            }
+        }
+        if (t.status === 'done' && t.updatedAt) {
+            const completed = t.updatedAt.toDate();
+            for (const [key, data] of Object.entries(weeklyData)) {
+                if (completed >= data.weekStart && completed <= data.weekEnd) {
+                    data.completed++;
+                    break;
+                }
+            }
+        }
+    });
+    
+    reportsCharts.velocity = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: weeks,
+            datasets: [
+                {
+                    label: 'Completed',
+                    data: weeks.map(w => weeklyData[w].completed),
+                    backgroundColor: '#10b981',
+                    borderRadius: 6,
+                    order: 1
+                },
+                {
+                    label: 'Created',
+                    data: weeks.map(w => weeklyData[w].created),
+                    type: 'line',
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'transparent',
+                    tension: 0.3,
+                    order: 0,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#3b82f6'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
         }
     });
 }
@@ -3818,6 +4503,105 @@ async function undoDelete() {
         else await loadTasks();
     } catch (error) { console.error('Error:', error); showToast('Error undoing', 'error'); }
 }
+
+// ============================================
+// ENHANCED OFFLINE SUPPORT (Add to dashboard.js)
+// ============================================
+
+function setupOfflineSupport() {
+    if (!('serviceWorker' in navigator)) return;
+    
+    // Listen for messages from service worker
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        const { type } = event.data || {};
+        
+        switch (type) {
+            case 'SW_ACTIVATED':
+                console.log('✅ Service Worker updated to', event.data.version);
+                showToast('App updated! Ready for offline use.', 'success');
+                break;
+                
+            case 'ONLINE':
+                console.log('🌐 Back online');
+                document.getElementById('offline-indicator')?.classList.remove('show');
+                syncOfflineChanges();
+                break;
+                
+            case 'OFFLINE':
+                console.log('📡 Gone offline');
+                document.getElementById('offline-indicator')?.classList.add('show');
+                break;
+                
+            case 'ACTION_QUEUED':
+                console.log('📤 Action queued for sync:', event.data.offlineCount);
+                updateOfflineBadge(event.data.offlineCount);
+                break;
+                
+            case 'SYNC_COMPLETE':
+                console.log('✅ Sync complete:', event.data);
+                updateOfflineBadge(0);
+                if (event.data.processed > 0) {
+                    showToast(`Synced ${event.data.processed} offline changes`, 'success');
+                    loadTasks(true);
+                }
+                break;
+        }
+    });
+    
+    // Register periodic sync if available
+    if ('periodicSync' in navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+            reg.periodicSync.register('offline-queue', {
+                minInterval: 60 * 60 * 1000 // 1 hour
+            }).catch(() => {
+                console.log('Periodic sync not available');
+            });
+        });
+    }
+}
+
+function updateOfflineBadge(count) {
+    const badge = document.getElementById('offline-queue-count');
+    if (!badge) return;
+    
+    if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+async function syncOfflineChanges() {
+    // Tell the service worker to process the queue
+    if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'SYNC_NOW' });
+    }
+}
+
+/**
+ * Queue a task operation when offline
+ */
+async function queueTaskOperation(operation, data) {
+    if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+            type: 'QUEUE_OFFLINE_ACTION',
+            data: {
+                id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+                url: operation.url || `${window.location.origin}/api/tasks`,
+                method: operation.method || 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data),
+                timestamp: Date.now(),
+                retries: 0,
+                operationType: operation.type || 'task-create'
+            }
+        });
+    }
+}
+
 
 // ============================================
 // KEYBOARD SHORTCUTS
