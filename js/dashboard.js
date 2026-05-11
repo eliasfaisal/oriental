@@ -1742,7 +1742,7 @@ function createTaskCard(task) {
         </span>` : '';
     
     return `
-        <div class="task-card" draggable="true" data-task-id="${task.id}" data-status="${task.status || 'todo'}" data-project-id="${task.projectId}" onclick="openTaskDetail('${safeTaskId}')">
+        <div class="task-card" draggable="true" data-task-id="${task.id}" data-status="${task.status || 'planned'}" data-project-id="${task.projectId}" onclick="openTaskDetail('${safeTaskId}')">
             <div class="task-title">
                 ${highlightedTitle} ${recurringBadge}
                 ${projectBadge}
@@ -1815,7 +1815,7 @@ async function createTask(taskData) {
             title: taskData.title,
             description: taskData.description || '',
             priority: taskData.priority || 'medium',
-            status: 'todo',
+            status: 'planned',
             assignedTo: assigneeName,
             assignedToId: assigneeId,
             dueDate: taskData.dueDate || null,
@@ -2080,7 +2080,11 @@ function updateFilterBadge() {
     });
     
     activeFilters.statuses.forEach(s => {
-        const statusName = s === 'todo' ? 'To Do' : (s === 'in-progress' ? 'In Progress' : 'Done');
+        const statusName = 
+    s === 'planned' ? 'Planned' : 
+    s === 'started' ? 'Started' : 
+    s === 'in-progress' ? 'In Progress' : 
+    s === 'waiting' ? 'Waiting' : 'Done';
         badgeContainer.innerHTML += `<div class="filter-badge"><i class="fas fa-circle"></i> ${statusName}<button onclick="removeFilter('status', '${s}')">&times;</button></div>`;
     });
     
@@ -2187,7 +2191,7 @@ function applySearchAndFilter() {
 }
 
 // ============================================
-// BOARD RENDERING
+// BOARD RENDERING - 5 Columns
 // ============================================
 
 function renderBoard(tasks) {
@@ -2204,14 +2208,25 @@ function renderBoard(tasks) {
     }
     
     const columns = {
-        'todo': { title: 'To Do', tasks: [], icon: 'fa-circle', color: '#9ca3af' },
-        'in-progress': { title: 'In Progress', tasks: [], icon: 'fa-spinner', color: '#3b82f6' },
-        'done': { title: 'Done', tasks: [], icon: 'fa-check-circle', color: '#10b981' }
+        'planned':     { title: 'Planned',     tasks: [], icon: 'fa-circle',          color: '#9ca3af' },
+        'started':     { title: 'Started',     tasks: [], icon: 'fa-play-circle',     color: '#3b82f6' },
+        'in-progress': { title: 'In Progress', tasks: [], icon: 'fa-spinner',         color: '#f59e0b' },
+        'waiting':     { title: 'Waiting',     tasks: [], icon: 'fa-clock',           color: '#8b5cf6' },
+        'done':        { title: 'Done',        tasks: [], icon: 'fa-check-circle',    color: '#10b981' }
     };
     
     tasks.forEach(task => {
-        const status = task.status || 'todo';
-        if (columns[status]) columns[status].tasks.push(task);
+        const status = task.status || 'planned';
+        if (columns[status]) {
+            columns[status].tasks.push(task);
+        } else {
+            // Fallback for old status values
+            if (status === 'todo') {
+                columns['planned'].tasks.push(task);
+            } else {
+                columns['planned'].tasks.push(task);
+            }
+        }
     });
     
     const boardView = document.getElementById('board-view');
@@ -2254,7 +2269,7 @@ function createTaskCard(task) {
         '<span class="recurrence-badge" title="Recurring Task"><i class="fas fa-redo-alt"></i></span>' : '';
     
     return `
-        <div class="task-card" draggable="true" data-task-id="${task.id}" data-status="${task.status || 'todo'}" onclick="openTaskDetail('${safeTaskId}')">
+        <div class="task-card" draggable="true" data-task-id="${task.id}" data-status="${task.status || 'planned'}" onclick="openTaskDetail('${safeTaskId}')">
             <div class="task-title">${highlightedTitle} ${recurringBadge}</div>
             ${task.description ? `<div class="task-description">${escapeHtml(task.description.substring(0, 100))}</div>` : ''}
             <div class="task-meta">
@@ -3280,12 +3295,12 @@ function displayNoActiveSprint() {
     if (createBtn) createBtn.style.display = 'flex';
     if (completeBtn) completeBtn.style.display = 'none';
     
-    ['planned-tasks', 'progress-tasks', 'completed-tasks'].forEach(id => {
+    ['planned-tasks', 'started-tasks', 'progress-tasks', 'waiting-tasks', 'completed-tasks'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '<div class="empty-state-small">No active sprint</div>';
     });
     
-    ['planned-count', 'progress-count', 'completed-count'].forEach(id => {
+    ['planned-count', 'started-count', 'progress-count', 'waiting-count', 'completed-count'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = '0';
     });
@@ -3315,28 +3330,36 @@ async function loadSprintTasks(sprint) {
             if (taskDoc.exists) tasksData.push({ id: taskDoc.id, ...taskDoc.data() });
         }
         
-        const planned = tasksData.filter(t => t.status === 'todo');
-        const inProgress = tasksData.filter(t => t.status === 'in-progress');
-        const completed = tasksData.filter(t => t.status === 'done');
+        const planned = tasksData.filter(t => t.status === 'planned' || t.status === 'todo');
+const started = tasksData.filter(t => t.status === 'started');
+const inProgress = tasksData.filter(t => t.status === 'in-progress');
+const waiting = tasksData.filter(t => t.status === 'waiting');
+const completed = tasksData.filter(t => t.status === 'done');
         
-        renderSprintColumns(planned, inProgress, completed);
+        renderSprintColumns(planned, started, inProgress, waiting, completed);
         updateSprintProgress(completed.length, tasksData.length);
     } catch (error) {
         console.error('Error loading sprint tasks:', error);
     }
 }
 
-function renderSprintColumns(planned, inProgress, completed) {
+function renderSprintColumns(planned, started, inProgress, waiting, completed) {
     const pEl = document.getElementById('planned-tasks');
+    const sEl = document.getElementById('started-tasks');
     const iEl = document.getElementById('progress-tasks');
+    const wEl = document.getElementById('waiting-tasks');
     const cEl = document.getElementById('completed-tasks');
     
     if (pEl) pEl.innerHTML = planned.map(t => createSprintTaskCard(t)).join('') || '<div class="empty-state-small">No tasks</div>';
+    if (sEl) sEl.innerHTML = started.map(t => createSprintTaskCard(t)).join('') || '<div class="empty-state-small">No tasks</div>';
     if (iEl) iEl.innerHTML = inProgress.map(t => createSprintTaskCard(t)).join('') || '<div class="empty-state-small">No tasks</div>';
+    if (wEl) wEl.innerHTML = waiting.map(t => createSprintTaskCard(t)).join('') || '<div class="empty-state-small">No tasks</div>';
     if (cEl) cEl.innerHTML = completed.map(t => createSprintTaskCard(t)).join('') || '<div class="empty-state-small">No tasks</div>';
     
     document.getElementById('planned-count').textContent = planned.length;
+    document.getElementById('started-count').textContent = started.length;
     document.getElementById('progress-count').textContent = inProgress.length;
+    document.getElementById('waiting-count').textContent = waiting.length;
     document.getElementById('completed-count').textContent = completed.length;
 }
 
@@ -3346,11 +3369,11 @@ function createSprintTaskCard(task) {
 }
 
 function showEmptySprintColumns() {
-    ['planned-tasks','progress-tasks','completed-tasks'].forEach(id => {
+    ['planned-tasks','started-tasks','progress-tasks','waiting-tasks','completed-tasks'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '<div class="empty-state-small">No tasks</div>';
     });
-    ['planned-count','progress-count','completed-count'].forEach(id => {
+    ['planned-count','started-count','progress-count','waiting-count','completed-count'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = '0';
     });
@@ -3878,16 +3901,24 @@ function renderCumulativeFlowChart(tasks, dateFilter) {
         labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
         
         let todo = 0, inProgress = 0, done = 0;
-        tasks.forEach(t => {
-            const created = t.createdAt?.toDate() || new Date(0);
-            const updated = t.updatedAt?.toDate() || created;
-            
-            if (created <= d) {
-                if (t.status === 'done' && updated <= d) done++;
-                else if (t.status === 'in-progress' && updated <= d) inProgress++;
-                else todo++;
-            }
-        });
+tasks.forEach(t => {
+    const created = t.createdAt?.toDate() || new Date(0);
+    const updated = t.updatedAt?.toDate() || created;
+    
+    if (created <= d) {
+        if (t.status === 'done' && updated <= d) {
+            doneCount++;
+        } else if (t.status === 'in-progress') {
+            inProgressCount++;
+        } else if (t.status === 'started') {
+            inProgressCount++;  // Count started as in-progress category
+        } else if (t.status === 'waiting') {
+            waitingCount++;
+        } else {
+            plannedCount++;
+        }
+    }
+});
         
         todoData.push(todo);
         inProgressData.push(inProgress);
@@ -4205,7 +4236,7 @@ async function populateHealthTable(tasks) {
         if (stats[t.projectId]) {
             stats[t.projectId].total++;
             if (t.status === 'done') stats[t.projectId].completed++;
-            if (t.status === 'in-progress') stats[t.projectId].inProgress++;
+if (t.status === 'in-progress' || t.status === 'started') stats[t.projectId].inProgress++;
         }
     });
     

@@ -230,11 +230,13 @@
                                 <label><input type="checkbox" value="low" class="filter-priority"> Low</label>
                             </div>
                             <div class="filter-section">
-                                <h4>Status</h4>
-                                <label><input type="checkbox" value="todo" class="filter-status"> To Do</label>
-                                <label><input type="checkbox" value="in-progress" class="filter-status"> In Progress</label>
-                                <label><input type="checkbox" value="done" class="filter-status"> Done</label>
-                            </div>
+    <h4>Status</h4>
+    <label><input type="checkbox" value="planned" class="filter-status"> Planned</label>
+    <label><input type="checkbox" value="started" class="filter-status"> Started</label>
+    <label><input type="checkbox" value="in-progress" class="filter-status"> In Progress</label>
+    <label><input type="checkbox" value="waiting" class="filter-status"> Waiting</label>
+    <label><input type="checkbox" value="done" class="filter-status"> Done</label>
+</div>
                             <div class="filter-section">
                                 <h4>Due Date</h4>
                                 <label><input type="checkbox" value="overdue" class="filter-due"> Overdue</label>
@@ -319,28 +321,42 @@
                 
                 <div class="sprint-board">
                     <div class="sprint-columns">
-                        <div class="sprint-column">
-                            <div class="sprint-column-header">
-                                <i class="fas fa-list"></i> Planned
-                                <span class="sprint-column-count" id="planned-count">0</span>
-                            </div>
-                            <div class="sprint-tasks-list" id="planned-tasks"></div>
-                        </div>
-                        <div class="sprint-column">
-                            <div class="sprint-column-header">
-                                <i class="fas fa-spinner"></i> In Progress
-                                <span class="sprint-column-count" id="progress-count">0</span>
-                            </div>
-                            <div class="sprint-tasks-list" id="progress-tasks"></div>
-                        </div>
-                        <div class="sprint-column">
-                            <div class="sprint-column-header">
-                                <i class="fas fa-check-circle"></i> Completed
-                                <span class="sprint-column-count" id="completed-count">0</span>
-                            </div>
-                            <div class="sprint-tasks-list" id="completed-tasks"></div>
-                        </div>
-                    </div>
+    <div class="sprint-column">
+        <div class="sprint-column-header">
+            <i class="fas fa-list"></i> Planned
+            <span class="sprint-column-count" id="planned-count">0</span>
+        </div>
+        <div class="sprint-tasks-list" id="planned-tasks"></div>
+    </div>
+    <div class="sprint-column">
+        <div class="sprint-column-header">
+            <i class="fas fa-play-circle"></i> Started
+            <span class="sprint-column-count" id="started-count">0</span>
+        </div>
+        <div class="sprint-tasks-list" id="started-tasks"></div>
+    </div>
+    <div class="sprint-column">
+        <div class="sprint-column-header">
+            <i class="fas fa-spinner"></i> In Progress
+            <span class="sprint-column-count" id="progress-count">0</span>
+        </div>
+        <div class="sprint-tasks-list" id="progress-tasks"></div>
+    </div>
+    <div class="sprint-column">
+        <div class="sprint-column-header">
+            <i class="fas fa-clock"></i> Waiting
+            <span class="sprint-column-count" id="waiting-count">0</span>
+        </div>
+        <div class="sprint-tasks-list" id="waiting-tasks"></div>
+    </div>
+    <div class="sprint-column">
+        <div class="sprint-column-header">
+            <i class="fas fa-check-circle"></i> Completed
+            <span class="sprint-column-count" id="completed-count">0</span>
+        </div>
+        <div class="sprint-tasks-list" id="completed-tasks"></div>
+    </div>
+</div>
                 </div>
                 
                 <div class="add-to-sprint-container">

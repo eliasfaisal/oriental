@@ -4,13 +4,13 @@
 
 .board-view {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     overflow-x: auto;
     padding-bottom: 16px;
 }
 
 .board-column {
-    min-width: 300px;
+    min-width: 280px;
     background: var(--bg-column);
     border-radius: var(--radius-md);
     padding: 12px;
