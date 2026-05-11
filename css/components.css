@@ -2300,22 +2300,22 @@ hr {
 #all-projects-toggle:hover i {
     transform: rotate(180deg);
 }
-/* Project Performance Grid - UPDATED */
+/* Project Performance Grid */
 .project-performance-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
 .project-performance-card {
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: 16px;
+    border-radius: var(--radius-md);
+    padding: 14px;
     cursor: pointer;
     box-shadow: var(--shadow-xs);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: all var(--transition-fast);
     position: relative;
     overflow: hidden;
 }
@@ -2325,18 +2325,17 @@ hr {
     position: absolute;
     top: 0;
     left: 0;
-    width: 4px;
+    width: 3px;
     height: 100%;
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 }
 
 .project-performance-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-sm);
+    border-color: var(--primary-200);
 }
 
 [data-theme="dark"] .project-performance-card:hover {
-    box-shadow: var(--shadow-card-hover, 0 8px 30px rgba(0, 0, 0, 0.3));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .loading-pulse {
@@ -2348,11 +2347,10 @@ hr {
     50% { opacity: 0.5; }
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
     .project-performance-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
     }
 }
 
@@ -2361,17 +2359,7 @@ hr {
         grid-template-columns: 1fr;
     }
 }
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .project-performance-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 0.75rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .project-performance-grid {
-        grid-template-columns: 1fr;
-    }
-}
+/* ============================================
+   ENHANCED ATTACHMENTS INTERFACE
+   ============================================ */
+   
